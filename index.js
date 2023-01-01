@@ -17,10 +17,8 @@ async function printDiagram(page, options) {
   const {
     input,
     outputs,
-    minDimensions,
     footer,
     title = true,
-    deviceScaleFactor
   } = options;
 
   const diagramXML = readFileSync(input, 'utf8');
@@ -31,7 +29,7 @@ async function printDiagram(page, options) {
 
   await page.goto(`file://${__dirname}/skeleton.html`);
 
-  const viewerScript = relative(__dirname, require.resolve('bpmn-js/dist/bpmn-viewer.production.min.js'));
+  const viewerScript = relative(__dirname, require.resolve('dmn-js/dist/dmn-viewer.production.min.js'));
 
   const desiredViewport = await page.evaluate(async function(diagramXML, options) {
 
@@ -43,49 +41,22 @@ async function printDiagram(page, options) {
     await loadScript(viewerScript);
 
     // returns desired viewport
-    return openDiagram(diagramXML, openOptions);
+    return openDecision(diagramXML, openOptions);
   }, diagramXML, {
-    minDimensions,
     title: diagramTitle,
     viewerScript,
     footer
   });;
 
-  page.setViewport({
-    width: Math.round(desiredViewport.width),
-    height: Math.round(desiredViewport.height),
-    deviceScaleFactor: deviceScaleFactor
-  });
-
-  await page.evaluate(() => resize());
-
   for (const output of outputs) {
 
     console.log(`writing ${output}`);
 
-    if (output.endsWith('.pdf')) {
-      await page.pdf({
-        path: output,
-        width: desiredViewport.width,
-        height: desiredViewport.diagramHeight
-      });
-    } else
-    if (output.endsWith('.png')) {
-      await page.screenshot({
-        path: output,
-        clip: {
-          x: 0,
-          y: 0,
-          width: desiredViewport.width,
-          height: desiredViewport.diagramHeight
-        }
-      });
-    } else
-    if (output.endsWith('.svg')) {
+    if (output.endsWith('.html')) {
 
-      const svg = await page.evaluate(() => toSVG());
+      const html = await page.evaluate(() => toHTML());
 
-      fs.writeFileSync(output, svg, 'utf8');
+      fs.writeFileSync(output, Buffer.from(html, 'utf8'), 'utf8');
     } else {
       console.error(`Unknown output file format: ${output}`);
     }
@@ -112,10 +83,8 @@ async function withPage(fn) {
 async function convertAll(conversions, options={}) {
 
   const {
-    minDimensions,
     footer,
     title,
-    deviceScaleFactor
   } = options;
 
   await withPage(async function(page) {
@@ -130,10 +99,8 @@ async function convertAll(conversions, options={}) {
       await printDiagram(page, {
         input,
         outputs,
-        minDimensions,
         title,
         footer,
-        deviceScaleFactor
       });
     }
 
