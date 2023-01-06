@@ -2,9 +2,9 @@
 <html>
   <head>
     <meta charset="UTF-8" />
-    <title>Decision Viewer</title>
+    <title>Form Viewer</title>
 
-    <!-- dmn-js script is injected via loadScript -->
+    <!-- form-js script is injected via loadScript -->
 
     <style>
       body {
@@ -15,12 +15,17 @@
         height: 100%;
         padding: 0;
         margin: 0;
+        max-width: 400px;
       }
 
       .footer {
         position: absolute;
         bottom: 15px;
         left: 15px;
+      }
+
+      .fjs-container .fjs-form {
+        background-color: transparent !important;
       }
 
       #title {
@@ -41,72 +46,55 @@
 
     <script>
       // viewer instance, lazily initialized
-      let dmnViewer;
+      let form;
 
       /**
        * Get or create viewer instance.
        *
-       * @return {DmnViewer}
+       * @return {formViewer}
        */
-      function getViewer() {
+      function getFormViewer() {
 
-        if (dmnViewer) {
-          return dmnViewer;
+        if (form) {
+          return form;
         }
 
-        dmnViewer = new DmnJS({
-          container: '#canvas'
+        form = new FormViewer.Form({
+          container: document.getElementById('canvas')
         });
 
-        dmnViewer.on('import.done', function(event) {
+        form.on('import.done', function(event) {
 
           const error = event.error;
           const warnings = event.warnings;
 
           if (error) {
-            return console.error('could not import DMN 1.3 decision', error);
-          }
-
-          const views = dmnViewer.getViews();
-
-          const decisionTableViews = views.filter(
-            ({ type }) => type === "decisionTable"
-          );
-
-          if (decisionTableViews.length === 1) {
-            dmnViewer.open(decisionTableViews[0]);
+            return console.error('could not import form-js form', error);
           }
         });
 
-        return dmnViewer;
+        return form;
       }
 
       /**
-       * Open decision in our viewer instance.
+       * Open form in our viewer instance.
        *
-       * @param {String} dmnXML decision to display
+       * @param {String} formJSON form to display
        * @param {Object} [options]
        * @param {Dimensions} [options.minDimensions]
        *
        * @return {Promise<Bounds, Error>}
        */
-      async function openDecision(dmnXML, options) {
-
-        // viewer instance, lazily initialized
-        const dmnViewer = getViewer();
+      async function openForm(formJSON, dataJSON, options) {
+        const formViewer = getFormViewer();
 
         options = options || {};
-
-        const minDimensions = options.minDimensions || {
-          width: 0,
-          height: 0
-        };
 
         const title = options.title;
 
         const footer = options.footer;
 
-        await dmnViewer.importXML(dmnXML);
+        await formViewer.importSchema(JSON.parse(formJSON), JSON.parse(dataJSON));
 
         // uses provided title
         const titleNode = document.querySelector('#title');
@@ -116,19 +104,27 @@
         }
 
         titleNode.style.display = title ? 'block' : 'none';
+
+        function timeout(ms) {
+          return new Promise(resolve => setTimeout(resolve, ms));
+        }
+        await timeout(100);
+        document.getElementsByClassName("fjs-powered-by")[0].remove();
+
+        const el = document.getElementsByClassName("fjs-form")[0];
+        return JSON.stringify(el.getBoundingClientRect());
       }
 
       async function toHTML() {
-        const dmnViewer = getViewer();
+        const formViewer = getFormViewer();
 
-        document.getElementsByClassName("view-drd")[0].remove();
         const html = document.getElementById("canvas").innerHTML;
 
         return html;
       }
 
       /**
-       * Load the script that provides the DmnJS global
+       * Load the script that provides the FormJS global
        *
        * @param  {String} src
        *
@@ -158,6 +154,23 @@
         head.appendChild(script);
 
         return promise;
+      }
+
+      /**
+       * Load stylesheet
+       *
+       * @param  {String} href
+       */
+      function loadCSS(href) {
+        const head = document.head;
+        const link = document.createElement('link');
+
+        link.rel = 'stylesheet';
+        link.href = href;
+
+        head.appendChild(link);
+
+        return;
       }
     </script>
   </body>

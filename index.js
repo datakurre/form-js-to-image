@@ -12,7 +12,7 @@ const {
 } = require('fs');
 
 
-async function printDiagram(page, options) {
+async function printForm(page, options) {
 
   const {
     input,
@@ -21,37 +21,60 @@ async function printDiagram(page, options) {
     title = true,
   } = options;
 
-  const diagramXML = readFileSync(input, 'utf8');
+  const formJSON = readFileSync(input, 'utf8');
+  const dataJSON = (function() {
+    try {
+      return readFileSync(input.replace(/\.form$/, '.json'), 'utf8');
+    } catch (e) {
+      return '{}';
+    }
+  })();
 
-  const diagramTitle = title === false ? false : (
+  const formTitle = title === false ? false : (
     title.length ? title : basename(input)
   );
 
   await page.goto(`file://${__dirname}/skeleton.html`);
 
-  const viewerScript = relative(__dirname, require.resolve('dmn-js/dist/dmn-viewer.production.min.js'));
+  const viewerScript = relative(__dirname, require.resolve('@bpmn-io/form-js')).replace("index.cjs", 'form-viewer.umd.js');
+  const viewerCSS = relative(__dirname, require.resolve('@bpmn-io/form-js')).replace("index.cjs", 'assets/form-js.css');
 
-  const desiredViewport = await page.evaluate(async function(diagramXML, options) {
+  const desiredViewport_ = await page.evaluate(async function(formJSON, dataJSON, options) {
 
     const {
       viewerScript,
+      viewerCSS,
       ...openOptions
     } = options;
 
     await loadScript(viewerScript);
+    await loadCSS(viewerCSS);
 
     // returns desired viewport
-    return openDecision(diagramXML, openOptions);
-  }, diagramXML, {
-    title: diagramTitle,
+    return openForm(formJSON, dataJSON, openOptions);
+  }, formJSON, dataJSON, {
+    title: formTitle,
     viewerScript,
+    viewerCSS,
     footer
   });;
+  const desiredViewport = JSON.parse(desiredViewport_);
 
   for (const output of outputs) {
 
     console.log(`writing ${output}`);
 
+    if (output.endsWith('.png')) {
+      await page.screenshot({
+        path: output,
+        clip: {
+          x: 0,
+          y: 0,
+          width: desiredViewport.width,
+          height: desiredViewport.height + 40
+        }
+      });
+    } else
     if (output.endsWith('.html')) {
 
       const html = await page.evaluate(() => toHTML());
@@ -96,7 +119,7 @@ async function convertAll(conversions, options={}) {
         outputs
       } = conversion;
 
-      await printDiagram(page, {
+      await printForm(page, {
         input,
         outputs,
         title,

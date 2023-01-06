@@ -18,11 +18,11 @@ const {
 const cli = meow(`
   Usage
 
-    $ dmn-to-html <decisionFile>${pathDelimiter}<outputConfig> ...
+    $ form-js-to-image <formFile>${pathDelimiter}<outputConfig> ...
 
   Options
 
-    decisionFile                    Path to DMN decision
+    formFile                    Path to form-js form
     outputConfig                   List of extension or output file paths
 
     --title=<title>                Add explicit <title> to exported image
@@ -32,8 +32,8 @@ const cli = meow(`
 
   Examples
 
-    # export to decision.html
-    $ dmn-to-html decision.dmn${pathDelimiter}decision.html
+    # export to form.html
+    $ form-js-to-image camunda.form${pathDelimiter}form.html
 
 `, {
   flags: {
@@ -57,7 +57,7 @@ const conversions = cli.input.map(function(conversion) {
 
   const hasDelimiter = conversion.includes(pathDelimiter);
   if (!hasDelimiter) {
-     console.error(error(`  Error: no <decisionFile>${pathDelimiter}<outputConfig> param provided`));
+     console.error(error(`  Error: no <formFile>${pathDelimiter}<outputConfig> param provided`));
      cli.showHelp(1);
   }
 
@@ -94,7 +94,7 @@ convertAll(conversions, {
   title,
   footer,
 }).catch(function(e) {
-  console.error('failed to export decision(s)');
+  console.error('failed to export form(s)');
   console.error(e);
 
   process.exit(1);
